@@ -36,6 +36,12 @@ class ArtworkResource extends Resource
     {
         return $schema
             ->schema([
+                Select::make('category_id')
+                    ->label('Category')
+                    ->relationship('category', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (Category $cat) => $cat->getDefaultTranslation()?->name ?? $cat->name)
+                    ->columnSpan(1),
+
                 Section::make('Translations')
                     ->columnSpan(2)
                     ->schema([
@@ -79,13 +85,6 @@ class ArtworkResource extends Resource
                                     ->label('Price (text)')
                                     ->placeholder('50€, 50-150€, Sur devis')
                                     ->maxLength(100)
-                                    ->columnSpan(1),
-
-                                Select::make('category_id')
-                                    ->label('Category')
-                                    ->options(fn () => \Happytodev\Blogr\Models\Category::with('translations')->get()->mapWithKeys(fn ($cat) => [
-                                        $cat->id => $cat->getDefaultTranslation()?->name ?? $cat->name,
-                                    ])->toArray())
                                     ->columnSpan(1),
 
                                 Select::make('relatedTags')
