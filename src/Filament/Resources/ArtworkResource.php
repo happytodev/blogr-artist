@@ -133,15 +133,17 @@ class ArtworkResource extends Resource
                         Toggle::make('is_published')
                             ->label('Published')
                             ->default(false)
-                            ->columnSpan(1),
-
-                        DateTimePicker::make('published_at')
-                            ->label('Published At')
+                            ->inline()
                             ->columnSpan(1),
 
                         Toggle::make('is_featured')
                             ->label('Featured')
                             ->default(false)
+                            ->inline()
+                            ->columnSpan(1),
+
+                        DateTimePicker::make('published_at')
+                            ->label('Published At')
                             ->columnSpan(1),
                     ])
                     ->columns(2),
