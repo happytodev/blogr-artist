@@ -36,12 +36,6 @@ class ArtworkResource extends Resource
     {
         return $schema
             ->schema([
-                Select::make('category_id')
-                    ->label('Category')
-                    ->relationship('category', 'name')
-                    ->getOptionLabelFromRecordUsing(fn (Category $cat) => $cat->getDefaultTranslation()?->name ?? $cat->name)
-                    ->columnSpan(1),
-
                 Section::make('Translations')
                     ->columnSpan(2)
                     ->schema([
@@ -65,7 +59,7 @@ class ArtworkResource extends Resource
                                     ->label('Title')
                                     ->required()
                                     ->maxLength(255)
-                                    ->live()
+                                    ->live(true, 1000)
                                     ->afterStateUpdated(fn ($state, callable $set) => $set('slug', \Illuminate\Support\Str::slug($state)))
                                     ->columnSpan(2),
 
@@ -130,18 +124,24 @@ class ArtworkResource extends Resource
                 Section::make('Publication')
                     ->columnSpan(2)
                     ->schema([
+                        Select::make('category_id')
+                            ->label('Category')
+                            ->relationship('category', 'name')
+                            ->getOptionLabelFromRecordUsing(fn (Category $cat) => $cat->getDefaultTranslation()?->name ?? $cat->name)
+                            ->columnSpan(1),
+
                         Toggle::make('is_published')
                             ->label('Published')
                             ->default(false)
                             ->columnSpan(1),
 
+                        DateTimePicker::make('published_at')
+                            ->label('Published At')
+                            ->columnSpan(1),
+
                         Toggle::make('is_featured')
                             ->label('Featured')
                             ->default(false)
-                            ->columnSpan(1),
-
-                        DateTimePicker::make('published_at')
-                            ->label('Published At')
                             ->columnSpan(1),
                     ])
                     ->columns(2),
