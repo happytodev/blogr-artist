@@ -160,6 +160,7 @@ class ArtworkResource extends Resource
                     ->label('Image')
                     ->circular()
                     ->size(60)
+                    ->disk('public')
                     ->getStateUsing(fn (Artwork $record): ?string => $record->getDefaultTranslation()?->image),
 
                 TextColumn::make('title')
