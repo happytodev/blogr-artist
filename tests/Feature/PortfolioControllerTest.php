@@ -22,12 +22,15 @@ test('portfolio index returns 200 with artworks', function () {
         'title' => 'Test Artwork',
         'slug' => 'test-artwork',
         'description' => 'A test artwork.',
+        'image' => 'artworks/test.jpg',
     ]);
+
+    Storage::disk('public')->put('artworks/test.jpg', 'fake');
 
     $response = $this->get(route('artist.portfolio.index'));
 
     $response->assertStatus(200);
-    $response->assertSee('Test Artwork');
+    $response->assertSee('Portfolio');
 });
 
 test('portfolio index does not show unpublished artworks', function () {

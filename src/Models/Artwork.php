@@ -20,6 +20,10 @@ class Artwork extends Model implements Sortable
     protected $fillable = [
         'user_id',
         'category_id',
+        'crop_x',
+        'crop_y',
+        'show_in_portfolio',
+        'show_in_commissions',
         'is_published',
         'is_featured',
         'sort_order',
@@ -27,6 +31,10 @@ class Artwork extends Model implements Sortable
     ];
 
     protected $casts = [
+        'crop_x' => 'float',
+        'crop_y' => 'float',
+        'show_in_portfolio' => 'boolean',
+        'show_in_commissions' => 'boolean',
         'is_published' => 'boolean',
         'is_featured' => 'boolean',
         'published_at' => 'datetime',
@@ -71,6 +79,16 @@ class Artwork extends Model implements Sortable
     public function scopeFeatured($query)
     {
         return $query->where('is_featured', true);
+    }
+
+    public function scopeForPortfolio($query)
+    {
+        return $query->where('show_in_portfolio', true);
+    }
+
+    public function scopeForCommissions($query)
+    {
+        return $query->where('show_in_commissions', true);
     }
 
     protected static function newFactory(): ArtworkFactory

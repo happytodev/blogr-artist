@@ -48,7 +48,7 @@ class TestCase extends Orchestra
         $app['config']->set('blogr.cms.enabled', true);
         $app['config']->set('blogr.cms.reserved_slugs', array_merge(
             $app['config']->get('blogr.cms.reserved_slugs', []),
-            ['portfolio']
+            ['portfolio', 'commissions']
         ));
         $app['config']->set('database.connections.testing', [
             'driver' => 'sqlite',

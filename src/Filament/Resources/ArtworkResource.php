@@ -134,7 +134,6 @@ class ArtworkResource extends Resource
                             ->label('Published At')
                             ->columnSpan(1),
 
-                            
                         Toggle::make('is_featured')
                             ->label('Featured')
                             ->default(false)
@@ -146,8 +145,42 @@ class ArtworkResource extends Resource
                             ->default(false)
                             ->inline()
                             ->columnSpan(1),
-                            ])
+                    ])
                     ->columns(2),
+
+                Section::make('Crop & Visibility')
+                    ->columnSpan(2)
+                    ->schema([
+                        \Filament\Forms\Components\Fieldset::make('Image Crop')
+                            ->schema([
+                                \Filament\Forms\Components\Slider::make('crop_x')
+                                    ->label('Horizontal position')
+                                    ->min(0)->max(100)->default(50)
+                                    ->helperText('Adjust the crop position horizontally (0 = left, 50 = center, 100 = right)'),
+
+                                \Filament\Forms\Components\Slider::make('crop_y')
+                                    ->label('Vertical position')
+                                    ->min(0)->max(100)->default(50)
+                                    ->helperText('Adjust the crop position vertically (0 = top, 50 = center, 100 = bottom)'),
+                            ])
+                            ->columns(2),
+
+                        \Filament\Forms\Components\Fieldset::make('Visibility')
+                            ->schema([
+                                Toggle::make('show_in_portfolio')
+                                    ->label('Show in portfolio gallery')
+                                    ->default(true)
+                                    ->inline()
+                                    ->helperText('Display this artwork on the /portfolio page'),
+
+                                Toggle::make('show_in_commissions')
+                                    ->label('Show in commissions')
+                                    ->default(false)
+                                    ->inline()
+                                    ->helperText('Display this artwork in the commissions carousel'),
+                            ])
+                            ->columns(2),
+                    ]),
             ]);
     }
 

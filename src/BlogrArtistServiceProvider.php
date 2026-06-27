@@ -7,6 +7,7 @@ use Happytodev\Blogr\Services\ExtensionRegistry;
 use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource\Pages\CreateArtwork;
 use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource\Pages\EditArtwork;
 use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource\Pages\ListArtworks;
+use Happytodev\BlogrArtist\Http\Controllers\CommissionsController;
 use Happytodev\BlogrArtist\Http\Controllers\PortfolioController;
 use Livewire\Livewire;
 use Spatie\LaravelPackageTools\Package;
@@ -96,6 +97,9 @@ class BlogrArtistServiceProvider extends PackageServiceProvider
 
             $router->get($prefix . '/{slug}', [PortfolioController::class, 'show'])
                 ->name('artist.portfolio.show');
+
+            $router->get('commissions', [CommissionsController::class, 'index'])
+                ->name('artist.commissions.index');
         });
     }
 }
