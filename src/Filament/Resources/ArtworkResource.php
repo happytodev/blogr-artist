@@ -70,9 +70,12 @@ class ArtworkResource extends Resource
                                     ->unique(ignoreRecord: true)
                                     ->columnSpan(1),
 
-                                Textarea::make('description')
+                                \Filament\Forms\Components\MarkdownEditor::make('description')
                                     ->label('Description')
-                                    ->rows(4)
+                                    ->toolbarButtons([
+                                        'bold', 'italic', 'link', 'heading', 'bulletList',
+                                        'orderedList', 'blockquote', 'codeBlock',
+                                    ])
                                     ->columnSpan(2),
 
                                 TextInput::make('price')
@@ -162,6 +165,9 @@ class ArtworkResource extends Resource
                                     ->label('Vertical position')
                                     ->minValue(0)->maxValue(100)->default(50)
                                     ->helperText('Adjust the crop position vertically (0 = top, 50 = center, 100 = bottom)'),
+
+                                \Filament\Schemas\Components\View::make('blogr-artist::components.crop-preview')
+                                    ->columnSpan(2),
                             ])
                             ->columns(2),
 
