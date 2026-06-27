@@ -1,0 +1,867 @@
+<?php
+
+namespace Happytodev\Blogr\Http\Controllers;
+
+use Happytodev\Blogr\Extensions\VideoEmbedAdapter;
+use Happytodev\Blogr\Helpers\ConfigHelper;
+use Happytodev\Blogr\Helpers\SEOHelper;
+use Happytodev\Blogr\Models\BlogPost;
+use Happytodev\Blogr\Models\BlogPostTranslation;
+use Happytodev\Blogr\Models\BlogSeries;
+use Happytodev\Blogr\Models\Category;
+use Happytodev\Blogr\Models\CategoryTranslation;
+use Happytodev\Blogr\Models\Tag;
+use Happytodev\Blogr\Models\TagTranslation;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\Str;
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\Embed\EmbedExtension;
+use League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension;
+use League\CommonMark\Extension\TableOfContents\TableOfContentsExtension;
+use League\CommonMark\MarkdownConverter;
+
+class BlogController
+{
+    /**
+     * Generate a storage URL (temporary for cloud, regular for local).
+     */
+    private function getStorageUrl(string $path): string
+    {
+        // Use the 'public' disk for series and post images
+        $disk = Storage::disk('public');
+
+        try {
+            // Try to generate temporary URL (works for S3, etc.)
+            return $disk->temporaryUrl($path, now()->addHours(1));
+        } catch (\RuntimeException $e) {
+            // Fallback to regular URL for local driver
+            return $disk->url($path);
+        }
+    }
+
+    public function index($locale = null)
+    {
+        $locale = $locale ?? config('blogr.locales.default', 'en');
+        app()->setLocale($locale);
+
+        // Get posts that have translations in this locale with pagination
+        $posts = BlogPost::whereHas('translations', function ($query) use ($locale) {
+            $query->where('locale', $locale);
+        })
+            ->with([
+                'category.translations',
+                'tags.translations',
+                'translations', // Load all translations for photo fallback
+            ])
+            ->orderBy('published_at', 'desc')
+            ->where('is_published', true)
+            ->where(function ($query) {
+                $query->whereNull('published_at')
+                    ->orWhere('published_at', '<=', now());
+            })
+            ->visibleOnIndex()
+            ->paginate(config('blogr.posts_per_page', 10))
+            ->through(function ($post) use ($locale) {
+                // Get the translation for this locale
+                $translation = $post->translations->firstWhere('locale', $locale);
+
+                // If no translation in requested locale, try default translation
+                if (! $translation) {
+                    $translation = $post->getDefaultTranslation();
+                }
+
+                // Override post attributes with translation, with fallback to model accessors
+                $post->translated_title = $translation?->title ?? $post->title;
+                $post->translated_slug = $translation?->slug ?? $post->slug;
+                $post->translated_tldr = $translation?->tldr ?? $post->tldr;
+
+                // Set reading time from translation
+                if ($translation && isset($translation->reading_time)) {
+                    $post->reading_time = $translation->reading_time;
+                }
+
+                // Photo fallback logic: translation photo > post photo > any other translation photo
+                $photoToUse = null;
+                if ($translation?->photo) {
+                    $photoToUse = $translation->photo;
+                } elseif ($post->photo) {
+                    $photoToUse = $post->photo;
+                } else {
+                    $anyTranslationWithPhoto = $post->translations->first(fn ($t) => ! empty($t->photo));
+                    if ($anyTranslationWithPhoto) {
+                        $photoToUse = $anyTranslationWithPhoto->photo;
+                    }
+                }
+
+                // Set the photo to use (this will override the accessor's default behavior)
+                if ($photoToUse) {
+                    $post->setAttribute('photo', $photoToUse);
+                }
+
+                return $post;
+            });
+
+        // Get featured series with their translations
+        $featuredSeries = BlogSeries::where('is_featured', true)
+            ->whereNotNull('published_at')
+            ->where('published_at', '<=', now())
+            ->with('translations') // Load all translations for photo fallback
+            ->orderBy('position')
+            ->take(3)
+            ->get()
+            ->map(function ($series) use ($locale) {
+                $translation = $series->translate($locale);
+
+                // If no translation in requested locale, try default translation
+                if (! $translation) {
+                    $translation = $series->getDefaultTranslation();
+                }
+
+                // Set translated properties with fallback to model accessors
+                $series->translated_title = $translation?->title ?? $series->title;
+                $series->translated_description = $translation?->description ?? $series->description;
+                $series->translated_slug = $series->getTranslatedSlug($locale);
+
+                // Photo fallback logic for series: translation photo > series photo > any other translation photo
+                $photoToUse = null;
+
+                if ($translation?->photo) {
+                    $photoToUse = $translation->photo;
+                } elseif ($series->photo) {
+                    $photoToUse = $series->photo;
+                } else {
+                    $anyTranslationWithPhoto = $series->translations->first(fn ($t) => ! empty($t->photo));
+                    if ($anyTranslationWithPhoto) {
+                        $photoToUse = $anyTranslationWithPhoto->photo;
+                    }
+                }
+
+                // Set the photo to use (this will override the accessor's default behavior)
+                if ($photoToUse) {
+                    $series->setAttribute('photo', $photoToUse);
+                }
+
+                return $series;
+            });
+
+        $seoData = SEOHelper::forListingPage('index');
+
+        return View::make('blogr::blog.index', [
+            'posts' => $posts,
+            'featuredSeries' => $featuredSeries,
+            'seoData' => $seoData,
+            'currentLocale' => $locale,
+        ]);
+    }
+
+    public function show($localeOrSlug, $slug = null)
+    {
+        // Determine if locales are enabled
+        $localesEnabled = config('blogr.locales.enabled', false);
+
+        // Parse parameters
+        if ($localesEnabled && $slug !== null) {
+            // Format: /{locale}/blog/{slug}
+            $locale = $localeOrSlug;
+            $actualSlug = $slug;
+        } else {
+            // Format: /blog/{slug} (backward compatibility)
+            $locale = config('blogr.locales.default', 'en');
+            $actualSlug = $localeOrSlug;
+        }
+
+        $locale = $locale ?? config('blogr.locales.default', 'en');
+
+        // Set app locale for helpers to use
+        app()->setLocale($locale);
+
+        // Try to fetch translation in requested locale first
+        $translation = BlogPostTranslation::where('slug', $actualSlug)
+            ->where('locale', $locale)
+            ->with([
+                'post.category.translations',
+                'post.tags.translations',
+                'post.translations',
+                'post.series.translations',
+                'post.series.posts.translations',
+            ])
+            ->first();
+
+        // If not found in requested locale, try to find by slug alone (fallback)
+        if (! $translation) {
+            $translation = BlogPostTranslation::where('slug', $actualSlug)
+                ->with([
+                    'post.category.translations',
+                    'post.tags.translations',
+                    'post.translations',
+                    'post.series.translations',
+                    'post.series.posts.translations',
+                ])
+                ->first();
+        }
+
+        // If still not found, throw 404
+        if (! $translation) {
+            abort(404);
+        }
+
+        $post = $translation->post;
+
+        // Check if post is published
+        if (! $post->is_published) {
+            abort(404);
+        }
+
+        if ($post->published_at && $post->published_at->isFuture()) {
+            abort(404);
+        }
+
+        // Load permalink configuration
+        $permalinkConfig = config('blogr.heading_permalink', [
+            'symbol' => '#',
+            'spacing' => 'after',
+            'visibility' => 'hover',
+        ]);
+
+        // Determine insert position based on spacing preference
+        // If user wants space 'after' symbol, we insert 'before' the heading text
+        // If user wants space 'before' symbol, we insert 'after' the heading text
+        $insertPosition = match ($permalinkConfig['spacing']) {
+            'before' => 'after',  // Space before symbol = insert after heading
+            'after' => 'before',  // Space after symbol = insert before heading
+            'both' => 'before',   // Space on both sides = insert before (CSS handles both)
+            default => 'before',
+        };
+
+        // Get TOC position from config
+        $tocPosition = config('blogr.toc.position', 'center');
+        $isSidebarToc = in_array($tocPosition, ['left', 'right']);
+        $tocHtmlClass = 'toc blogr-toc-'.$tocPosition;
+        if ($isSidebarToc) {
+            $tocHtmlClass .= ' blogr-toc-sidebar';
+        } else {
+            $tocHtmlClass .= ' blogr-toc-center';
+        }
+
+        // Prepare markdown converter
+        $environment = new Environment([
+            'heading_permalink' => [
+                'html_class' => 'heading-permalink',
+                'id_prefix' => '',
+                'fragment_prefix' => '',
+                'insert' => $insertPosition,
+                'min_heading_level' => 1,
+                'max_heading_level' => 6,
+                'title' => 'Permalink',
+                'symbol' => $permalinkConfig['symbol'],
+                'aria_hidden' => true,
+            ],
+            'table_of_contents' => [
+                'position' => 'placeholder',
+                'placeholder' => '[[TOC]]',
+                'style' => 'bullet',
+                'min_heading_level' => 2,
+                'max_heading_level' => 6,
+                'normalize' => 'relative',
+                'html_class' => $tocHtmlClass,
+            ],
+            'embed' => [
+                'adapter' => new VideoEmbedAdapter,
+                'allowed_domains' => [],
+                'fallback' => 'link',
+            ],
+        ]);
+
+        $environment->addExtension(new CommonMarkCoreExtension);
+        $environment->addExtension(new HeadingPermalinkExtension);
+        $environment->addExtension(new TableOfContentsExtension);
+        $environment->addExtension(new EmbedExtension);
+
+        $converter = new MarkdownConverter($environment);
+
+        // Get the best available translation
+        if (! $translation) {
+            $translation = $post->getDefaultTranslation();
+        }
+
+        // If still no translation, show 404
+        if (! $translation) {
+            abort(404);
+        }
+
+        // Get content without frontmatter from translation
+        $contentWithoutFrontmatter = $this->getContentWithoutFrontmatter($translation->content);
+
+        // Only add TOC if it should be displayed
+        $tocHtml = null;
+        if ($post->shouldDisplayToc()) {
+            $tocTitle = __('blogr::blogr.ui.table_of_contents');
+            $markdownWithToc = "# {$tocTitle}\n\n[[TOC]]\n\n".$contentWithoutFrontmatter;
+            $convertedContent = $converter->convert($markdownWithToc)->getContent();
+
+            // If TOC is in sidebar (left/right), extract it from content
+            if ($isSidebarToc) {
+                // Extract both the H1 title and the TOC list together
+                // Pattern: <h1>...Table of Contents...</h1> followed by <ul class="toc">...</ul>
+                $tocPattern = '/<h1[^>]*>.*?'.preg_quote($tocTitle, '/').'.*?<\/h1>\s*<ul\s+[^>]*class="[^"]*\btoc\b[^"]*"[^>]*>[\s\S]*?<\/ul>/is';
+
+                if (preg_match($tocPattern, $convertedContent, $matches)) {
+                    // Store the entire TOC (title + list) for sidebar
+                    $tocHtml = $matches[0];
+
+                    // Remove it from the main content
+                    $convertedContent = str_replace($tocHtml, '', $convertedContent);
+
+                    // Clean up any double line breaks that might have been created
+                    $convertedContent = preg_replace('/(<\/h1>\s*){2,}/', '</h1>', $convertedContent);
+                    $convertedContent = preg_replace('/(\s*<p>\s*<\/p>\s*)+/', '', $convertedContent);
+                }
+            }
+        } else {
+            $convertedContent = $converter->convert($contentWithoutFrontmatter)->getContent();
+        }
+
+        // Set converted content on post for backward compatibility with views
+        $post->setAttribute('content', $convertedContent);
+
+        // Check if current locale translation is available
+        $translationAvailable = $post->translations->contains('locale', $locale);
+
+        // Set reading time on post model from translation
+        if ($translation) {
+            if (isset($translation->reading_time) && $translation->reading_time > 0) {
+                // Use stored value if available
+                $post->reading_time = $translation->reading_time;
+            } else {
+                // Calculate from translation content if not stored
+                $readingSpeed = config('blogr.reading_speed.words_per_minute', 200);
+                $text = ($translation->title ?? '').' '.($translation->content ?? '');
+                $plainText = strip_tags($text);
+                $wordCount = str_word_count($plainText);
+                $minutes = floor($wordCount / $readingSpeed);
+                $post->reading_time = $wordCount > 0 ? max(1, (int) $minutes) : 0;
+            }
+        }
+
+        // Prepare display data from translation
+        $displayData = [
+            'title' => $translation->title,
+            'slug' => $translation->slug,
+            'content' => $convertedContent,
+            'tldr' => $translation->tldr,
+            'seo_title' => $translation->seo_title,
+            'seo_description' => $translation->seo_description,
+            'seo_keywords' => $translation->seo_keywords,
+            'translationAvailable' => $translationAvailable,
+            'currentTranslationLocale' => $translation->locale,
+            'reading_time' => $translation->reading_time ?? $post->getEstimatedReadingTime(),
+        ];
+
+        // Add photo URL with fallback logic: translation photo > post photo
+        $photoToUse = null;
+
+        // First, check if the current translation has a photo
+        if ($translation->photo) {
+            $photoToUse = $translation->photo;
+        }
+        // If not, try to get photo from the post's main photo
+        elseif ($post->photo) {
+            $photoToUse = $post->photo;
+        }
+        // If still no photo, try to get photo from any other translation
+        else {
+            $anyTranslationWithPhoto = $post->translations->first(fn ($t) => ! empty($t->photo));
+            if ($anyTranslationWithPhoto) {
+                $photoToUse = $anyTranslationWithPhoto->photo;
+            }
+        }
+
+        // Set the photo to use (this will override the accessor's default behavior)
+        if ($photoToUse) {
+            $post->setAttribute('photo', $photoToUse);
+        }
+
+        // Get available translations for language switcher
+        $availableTranslations = $post->translations->map(function ($trans) use ($localesEnabled) {
+            return [
+                'locale' => $trans->locale,
+                'title' => $trans->title,
+                'url' => $localesEnabled
+                    ? route('blog.show', ['locale' => $trans->locale, 'slug' => $trans->slug])
+                    : route('blog.show', ['slug' => $trans->slug]),
+            ];
+        });
+
+        // Build SEO data using translation data instead of post data
+        // Use content without frontmatter for description
+        $contentWithoutFrontmatter = $this->getContentWithoutFrontmatter($translation->content);
+        $seoData = [
+            'title' => $translation->seo_title ?: $translation->title,
+            'description' => $translation->seo_description ?: Str::limit(strip_tags($contentWithoutFrontmatter), 160),
+            'keywords' => $translation->seo_keywords ?: $translation->title,
+            'canonical' => $localesEnabled
+                ? route('blog.show', ['locale' => $locale, 'slug' => $translation->slug])
+                : route('blog.show', ['slug' => $translation->slug]),
+            'og_type' => 'article',
+            'schema_type' => 'BlogPosting',
+            'site_name' => ConfigHelper::getSeoSiteName($locale),
+            'robots' => 'index, follow',
+            'author' => $post->user->name ?? ConfigHelper::getSeoSiteName($locale),
+            'published_time' => $post->published_at?->toISOString(),
+            'modified_time' => $post->updated_at->toISOString(),
+            'tags' => $post->tags->pluck('name')->toArray(),
+        ];
+
+        // Add image if post has one
+        if ($post->photo) {
+            $seoData['image'] = $post->photo_url;
+            $seoData['image_width'] = 1200;
+            $seoData['image_height'] = 630;
+        } else {
+            $seoData['image'] = asset(config('blogr.seo.og.image', '/images/blogr.webp'));
+            $seoData['image_width'] = config('blogr.seo.og.image_width', 1200);
+            $seoData['image_height'] = config('blogr.seo.og.image_height', 630);
+        }
+
+        // Add structured data for JSON-LD
+        $seoData['schema_additional'] = json_encode([
+            'headline' => $translation->title,
+            'author' => [
+                '@type' => 'Person',
+                'name' => $post->user->name ?? ConfigHelper::getSeoSiteName($locale),
+            ],
+            'datePublished' => $post->published_at?->toISOString(),
+            'dateModified' => $post->updated_at->toISOString(),
+        ]);
+
+        // Prepare translated slugs for series posts if post is part of a series
+        if ($post->series) {
+            // Translate the series itself
+            $seriesTranslation = $post->series->translations->firstWhere('locale', $locale);
+
+            // If no translation in requested locale, try default translation
+            if (! $seriesTranslation) {
+                $seriesTranslation = $post->series->getDefaultTranslation();
+            }
+
+            // Set translated properties with fallback to model accessors
+            $post->series->translated_title = $seriesTranslation?->title ?? $post->series->title;
+            $post->series->translated_description = $seriesTranslation?->description ?? $post->series->description;
+
+            // Filter to only published posts in the series
+            $post->series->posts = $post->series->posts->filter->isCurrentlyPublished()->values();
+
+            // Translate each post in the series
+            $post->series->posts->each(function ($seriesPost) use ($locale) {
+                $seriesTranslation = $seriesPost->translations->firstWhere('locale', $locale);
+
+                // If translation not found in requested locale, try default translation
+                if (! $seriesTranslation) {
+                    $seriesTranslation = $seriesPost->getDefaultTranslation();
+                }
+
+                // Always set translated properties with fallback to model accessors
+                $seriesPost->translated_slug = $seriesTranslation?->slug ?? $seriesPost->slug;
+                $seriesPost->translated_title = $seriesTranslation?->title ?? $seriesPost->title;
+            });
+        }
+
+        return View::make('blogr::blog.show', [
+            'post' => $post,
+            'displayData' => $displayData,
+            'currentLocale' => $locale,
+            'availableTranslations' => $availableTranslations,
+            'seoData' => $seoData,
+            'permalinkConfig' => $permalinkConfig,
+            'tocPosition' => $tocPosition,
+            'tocHtml' => $tocHtml,
+            'tocCollapsible' => config('blogr.toc.collapsible', true),
+        ]);
+    }
+
+    public function category($localeOrCategorySlug, $categorySlug = null)
+    {
+        // Determine if locales are enabled
+        $localesEnabled = config('blogr.locales.enabled', false);
+
+        // Parse parameters
+        if ($localesEnabled && $categorySlug !== null) {
+            // Format: /{locale}/blog/category/{categorySlug}
+            $locale = $localeOrCategorySlug;
+            $actualCategorySlug = $categorySlug;
+        } else {
+            // Format: /blog/category/{categorySlug} (backward compatibility)
+            $locale = config('blogr.locales.default', 'en');
+            $actualCategorySlug = $localeOrCategorySlug;
+        }
+
+        // Validate and resolve locale
+        $currentLocale = $locale ?? config('blogr.locales.default', 'en');
+
+        // Try to find category by main slug first
+        $category = Category::where('slug', $actualCategorySlug)->first();
+
+        // If not found, try to find by translated slug
+        if (! $category) {
+            $translation = CategoryTranslation::where('slug', $actualCategorySlug)
+                ->where('locale', $currentLocale)
+                ->first();
+
+            if ($translation) {
+                $category = $translation->category;
+            }
+        }
+
+        // If still not found, 404
+        if (! $category) {
+            abort(404);
+        }
+
+        // Get the translation for current locale
+        $categoryTranslation = $category->translate($currentLocale);
+        $displayName = $categoryTranslation ? $categoryTranslation->name : $category->name;
+
+        $posts = BlogPost::with([
+            'category.translations',
+            'tags.translations',
+            'translations' => function ($query) use ($currentLocale) {
+                $query->where('locale', $currentLocale);
+            },
+        ])
+            ->where('category_id', $category->id)
+            ->where('is_published', true)
+            ->where(function ($query) {
+                $query->whereNull('published_at')
+                    ->orWhere('published_at', '<=', now());
+            })
+            ->visibleOnIndex()
+            ->orderBy('published_at', 'desc')
+            ->paginate(config('blogr.posts_per_page', 10))
+            ->through(function ($post) use ($currentLocale) {
+                $translation = $post->translations->firstWhere('locale', $currentLocale);
+
+                if (! $translation) {
+                    $translation = $post->getDefaultTranslation();
+                }
+
+                // Set reading time from translation
+                if ($translation && isset($translation->reading_time)) {
+                    $post->reading_time = $translation->reading_time;
+                }
+
+                // Photo fallback logic: translation photo > post photo > any other translation photo
+                $photoToUse = null;
+                if ($translation?->photo) {
+                    $photoToUse = $translation->photo;
+                } elseif ($post->photo) {
+                    $photoToUse = $post->photo;
+                } else {
+                    $anyTranslationWithPhoto = $post->translations->first(fn ($t) => ! empty($t->photo));
+                    if ($anyTranslationWithPhoto) {
+                        $photoToUse = $anyTranslationWithPhoto->photo;
+                    }
+                }
+
+                if ($photoToUse) {
+                    $post->setAttribute('photo', $photoToUse);
+                }
+
+                return $post;
+            });
+
+        return View::make('blogr::blog.category', [
+            'category' => $category,
+            'categoryTranslation' => $categoryTranslation,
+            'displayName' => $displayName,
+            'posts' => $posts,
+            'currentLocale' => $currentLocale,
+            'seoData' => SEOHelper::forListingPage('category', $displayName),
+        ]);
+    }
+
+    public function tag($localeOrTagSlug, $tagSlug = null)
+    {
+        // Determine if locales are enabled
+        $localesEnabled = config('blogr.locales.enabled', false);
+
+        // Parse parameters
+        if ($localesEnabled && $tagSlug !== null) {
+            // Format: /{locale}/blog/tag/{tagSlug}
+            $locale = $localeOrTagSlug;
+            $actualTagSlug = $tagSlug;
+        } else {
+            // Format: /blog/tag/{tagSlug} (backward compatibility)
+            $locale = config('blogr.locales.default', 'en');
+            $actualTagSlug = $localeOrTagSlug;
+        }
+
+        $currentLocale = $locale ?? config('blogr.locales.default', 'en');
+
+        // Try to find tag by main slug first
+        $tag = Tag::where('slug', $actualTagSlug)->first();
+
+        // If not found, try to find by translated slug
+        if (! $tag) {
+            $translation = TagTranslation::where('slug', $actualTagSlug)
+                ->where('locale', $currentLocale)
+                ->first();
+
+            if ($translation) {
+                $tag = $translation->tag;
+            }
+        }
+
+        // If still not found, 404
+        if (! $tag) {
+            abort(404);
+        }
+
+        // Get the translation for current locale
+        $tagTranslation = $tag->translate($currentLocale);
+        $displayName = $tagTranslation ? $tagTranslation->name : $tag->name;
+
+        $posts = $tag->posts()
+            ->with([
+                'category.translations',
+                'tags.translations',
+                'translations' => function ($query) use ($currentLocale) {
+                    $query->where('locale', $currentLocale);
+                },
+            ])
+            ->where('is_published', true)
+            ->where(function ($query) {
+                $query->whereNull('published_at')
+                    ->orWhere('published_at', '<=', now());
+            })
+            ->visibleOnIndex()
+            ->orderBy('published_at', 'desc')
+            ->take(config('blogr.posts_per_page', 10))
+            ->get()
+            ->map(function ($post) use ($currentLocale) {
+                $translation = $post->translations->firstWhere('locale', $currentLocale);
+
+                if (! $translation) {
+                    $translation = $post->getDefaultTranslation();
+                }
+
+                // Set reading time from translation
+                if ($translation && isset($translation->reading_time)) {
+                    $post->reading_time = $translation->reading_time;
+                }
+
+                // Photo fallback logic: translation photo > post photo > any other translation photo
+                $photoToUse = null;
+                if ($translation?->photo) {
+                    $photoToUse = $translation->photo;
+                } elseif ($post->photo) {
+                    $photoToUse = $post->photo;
+                } else {
+                    $anyTranslationWithPhoto = $post->translations->first(fn ($t) => ! empty($t->photo));
+                    if ($anyTranslationWithPhoto) {
+                        $photoToUse = $anyTranslationWithPhoto->photo;
+                    }
+                }
+
+                if ($photoToUse) {
+                    $post->setAttribute('photo', $photoToUse);
+                }
+
+                return $post;
+            });
+
+        return View::make('blogr::blog.tag', [
+            'tag' => $tag,
+            'tagTranslation' => $tagTranslation,
+            'displayName' => $displayName,
+            'posts' => $posts,
+            'currentLocale' => $currentLocale,
+            'seoData' => SEOHelper::forListingPage('tag', $displayName),
+        ]);
+    }
+
+    public function seriesIndex($locale = null)
+    {
+        $locale = $locale ?? config('blogr.locales.default', 'en');
+
+        $series = BlogSeries::with(['translations', 'posts'])
+            ->published()
+            ->orderBy('position')
+            ->get()
+            ->map(function ($s) use ($locale) {
+                $translation = $s->translate($locale) ?? $s->getDefaultTranslation();
+                $s->translated_title = $translation?->title ?? $s->slug;
+                $s->translated_description = $translation?->description ?? '';
+                $s->translated_slug = $s->getTranslatedSlug($locale);
+
+                // Photo fallback logic: translation photo > series photo > any other translation photo
+                $photoToUse = null;
+
+                if ($translation?->photo) {
+                    $photoToUse = $translation->photo;
+                } elseif ($s->photo) {
+                    $photoToUse = $s->photo;
+                } else {
+                    $anyTranslationWithPhoto = $s->translations->first(fn ($t) => ! empty($t->photo));
+                    if ($anyTranslationWithPhoto) {
+                        $photoToUse = $anyTranslationWithPhoto->photo;
+                    }
+                }
+
+                // Set the photo to use (this will override the accessor's default behavior)
+                if ($photoToUse) {
+                    $s->setAttribute('photo', $photoToUse);
+                }
+
+                return $s;
+            });
+
+        $subtitle = config('blogr.series.subtitle.'.$locale)
+            ?? config('blogr.series.subtitle.en')
+            ?? 'Browse all our blog series and learn step by step.';
+
+        $seoData = [
+            'title' => 'Blog Series - '.config('app.name'),
+            'description' => $subtitle,
+            'canonical' => config('blogr.locales.enabled')
+                ? route('blog.series.index', ['locale' => $locale])
+                : route('blog.series.index'),
+        ];
+
+        return View::make('blogr::blog.series-index', [
+            'series' => $series,
+            'currentLocale' => $locale,
+            'seoData' => $seoData,
+        ]);
+    }
+
+    public function series($localeOrSlug, $seriesSlug = null)
+    {
+        // Determine if locales are enabled
+        $localesEnabled = config('blogr.locales.enabled', false);
+
+        // Parse parameters
+        if ($localesEnabled && $seriesSlug !== null) {
+            // Format: /{locale}/blog/series/{seriesSlug}
+            $locale = $localeOrSlug;
+            $actualSlug = $seriesSlug;
+        } else {
+            // Format: /blog/series/{seriesSlug} (backward compatibility)
+            $locale = config('blogr.locales.default', 'en');
+            $actualSlug = $localeOrSlug;
+        }
+
+        $locale = $locale ?? config('blogr.locales.default', 'en');
+
+        // Try to find series by translated slug first
+        $series = BlogSeries::whereHas('translations', function ($query) use ($actualSlug, $locale) {
+            $query->where('locale', $locale)
+                ->where('slug', $actualSlug);
+        })
+            ->with('translations') // Load translations eagerly
+            ->published()
+            ->first();
+
+        // If not found by translated slug, try base slug (backward compatibility)
+        if (! $series) {
+            $series = BlogSeries::where('slug', $actualSlug)
+                ->with('translations') // Load translations eagerly
+                ->published()
+                ->firstOrFail();
+        }
+
+        $posts = $series->posts()
+            ->with(['translations'])
+            ->published()
+            ->orderBy('series_position')
+            ->get()
+            ->map(function ($post) use ($locale) {
+                // Add translated slug for each post
+                $translation = $post->translations->firstWhere('locale', $locale);
+
+                // If no translation in requested locale, try default translation
+                if (! $translation) {
+                    $translation = $post->getDefaultTranslation();
+                }
+
+                // Set translated properties with fallback to model accessors
+                $post->translated_slug = $translation?->slug ?? $post->slug;
+                $post->translated_title = $translation?->title ?? $post->title;
+                $post->translated_tldr = $translation?->tldr ?? $post->tldr;
+
+                // Set reading time from translation
+                if ($translation && isset($translation->reading_time)) {
+                    $post->reading_time = $translation->reading_time;
+                }
+
+                // Photo fallback logic: translation photo > post photo > any other translation photo
+                $photoToUse = null;
+                if ($translation?->photo) {
+                    $photoToUse = $translation->photo;
+                } elseif ($post->photo) {
+                    $photoToUse = $post->photo;
+                } else {
+                    $anyTranslationWithPhoto = $post->translations->first(fn ($t) => ! empty($t->photo));
+                    if ($anyTranslationWithPhoto) {
+                        $photoToUse = $anyTranslationWithPhoto->photo;
+                    }
+                }
+
+                if ($photoToUse) {
+                    $post->setAttribute('photo', $photoToUse);
+                }
+
+                return $post;
+            });
+
+        $seriesTranslation = $series->translate($locale) ?? $series->getDefaultTranslation();
+
+        // Photo fallback logic for series: translation photo > series photo > any other translation photo
+        $photoToUse = null;
+
+        if ($seriesTranslation?->photo) {
+            $photoToUse = $seriesTranslation->photo;
+        } elseif ($series->photo) {
+            $photoToUse = $series->photo;
+        } else {
+            $series->load('translations');
+            $anyTranslationWithPhoto = $series->translations->first(fn ($t) => ! empty($t->photo));
+            if ($anyTranslationWithPhoto) {
+                $photoToUse = $anyTranslationWithPhoto->photo;
+            }
+        }
+
+        // Set the photo to use (this will override the accessor's default behavior)
+        if ($photoToUse) {
+            // Temporarily replace the photo attribute so the accessor uses the right one
+            $series->setAttribute('photo', $photoToUse);
+        }
+
+        // Get translated slug for canonical URL
+        $translatedSlug = $series->getTranslatedSlug($locale);
+
+        $seoData = [
+            'title' => $seriesTranslation?->seo_title ?? $seriesTranslation?->title ?? $series->slug,
+            'description' => $seriesTranslation?->seo_description ?? $seriesTranslation?->description ?? '',
+            'canonical' => $localesEnabled
+                ? route('blog.series', ['locale' => $locale, 'seriesSlug' => $translatedSlug])
+                : route('blog.series', ['seriesSlug' => $translatedSlug]),
+        ];
+
+        return View::make('blogr::blog.series', [
+            'series' => $series,
+            'seriesTranslation' => $seriesTranslation,
+            'posts' => $posts,
+            'currentLocale' => $locale,
+            'seoData' => $seoData,
+        ])->with('currentSeries', $series); // Share series for navigation component
+    }
+
+    protected function getContentWithoutFrontmatter(string $content): string
+    {
+        $pattern = '/^---\s*\n.*?\n---\s*\n/s';
+
+        return preg_replace($pattern, '', $content);
+    }
+}
