@@ -11,6 +11,13 @@ class CreateArtwork extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        \Illuminate\Support\Facades\Log::info('CreateArtwork mutateFormDataBeforeCreate', [
+            'data_keys' => array_keys($data),
+            'has_translations' => isset($data['translations']),
+            'translations_count' => is_array($data['translations'] ?? null) ? count($data['translations']) : 0,
+            'first_translation_keys' => is_array($data['translations'][0] ?? null) ? array_keys($data['translations'][0]) : [],
+        ]);
+
         if (isset($data['translations']) && is_array($data['translations'])) {
             $first = reset($data['translations']);
             if (isset($first['category_id'])) {
