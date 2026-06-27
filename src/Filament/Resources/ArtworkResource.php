@@ -88,14 +88,14 @@ class ArtworkResource extends Resource
 
                                 Select::make('categories')
                                     ->label('Categories')
-                                    ->relationship('categories', 'id')
+                                    ->relationship('categories', 'name')
                                     ->multiple()
                                     ->getOptionLabelFromRecordUsing(fn (Category $cat) => $cat->getDefaultTranslation()?->name ?? $cat->name)
                                     ->columnSpan(2),
 
                                 Select::make('tags')
                                     ->label('Tags')
-                                    ->relationship('tags', 'id')
+                                    ->relationship('tags', 'name')
                                     ->multiple()
                                     ->getOptionLabelFromRecordUsing(fn (Tag $tag) => $tag->getDefaultTranslation()?->name ?? $tag->name)
                                     ->columnSpan(2),
