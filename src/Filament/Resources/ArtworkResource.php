@@ -121,6 +121,7 @@ class ArtworkResource extends Resource
                     ]),
 
                 Section::make('Details')
+                    ->columnSpan(2)
                     ->schema([
                         Select::make('category_id')
                             ->label('Category')
