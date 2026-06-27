@@ -29,7 +29,7 @@
             this.imageUrl = null;
         }
     }"
-    @livewire-update.window="updateImage()"
+    x-on:livewire:update.window="updateImage()"
 >
     <div class="mt-2">
         <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Crop preview</p>
