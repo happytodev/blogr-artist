@@ -59,12 +59,15 @@ class ArtworkResource extends Resource
                                     ->label('Title')
                                     ->required()
                                     ->maxLength(255)
+                                    ->live()
+                                    ->afterStateUpdated(fn ($state, callable $set) => $set('slug', \Illuminate\Support\Str::slug($state)))
                                     ->columnSpan(2),
 
                                 TextInput::make('slug')
                                     ->label('Slug')
                                     ->required()
                                     ->maxLength(255)
+                                    ->unique(ignoreRecord: true)
                                     ->columnSpan(1),
 
                                 Textarea::make('description')
