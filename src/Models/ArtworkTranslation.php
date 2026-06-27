@@ -47,7 +47,7 @@ class ArtworkTranslation extends Model
         );
     }
 
-    public function tags(): BelongsToMany
+    public function relatedTags(): BelongsToMany
     {
         return $this->belongsToMany(
             Tag::class,
