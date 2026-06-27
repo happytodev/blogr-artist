@@ -22,7 +22,6 @@ use Filament\Actions\DeleteBulkAction;
 use Happytodev\Blogr\Models\Category;
 use Happytodev\Blogr\Models\Tag;
 use Happytodev\BlogrArtist\Models\Artwork;
-
 class ArtworkResource extends Resource
 {
     protected static ?string $model = Artwork::class;
@@ -157,20 +156,24 @@ class ArtworkResource extends Resource
     {
         return $table
             ->columns([
-                ImageColumn::make('translations.image')
+                ImageColumn::make('image')
                     ->label('Image')
                     ->circular()
-                    ->size(60),
+                    ->size(60)
+                    ->getStateUsing(fn (Artwork $record): ?string => $record->getDefaultTranslation()?->image),
 
-                TextColumn::make('defaultTranslation.title')
+                TextColumn::make('title')
                     ->label('Title')
-                    ->searchable(),
+                    ->searchable()
+                    ->getStateUsing(fn (Artwork $record): ?string => $record->getDefaultTranslation()?->title),
 
-                TextColumn::make('defaultTranslation.price')
-                    ->label('Price'),
+                TextColumn::make('price')
+                    ->label('Price')
+                    ->getStateUsing(fn (Artwork $record): ?string => $record->getDefaultTranslation()?->price),
 
-                TextColumn::make('defaultTranslation.category_name')
-                    ->label('Category'),
+                TextColumn::make('category_name')
+                    ->label('Category')
+                    ->getStateUsing(fn (Artwork $record): ?string => $record->getDefaultTranslation()?->category_name),
 
                 IconColumn::make('is_published')
                     ->label('Published')
