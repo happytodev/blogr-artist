@@ -37,6 +37,7 @@ class ArtworkResource extends Resource
         return $schema
             ->schema([
                 Section::make('Translations')
+                    ->columnSpan(2)
                     ->schema([
                         Repeater::make('translations')
                             ->relationship('translations')
