@@ -9,6 +9,19 @@ class EditArtwork extends EditRecord
 {
     protected static string $resource = ArtworkResource::class;
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $parentCategoryId = $this->record->category_id ?? null;
+
+        if ($parentCategoryId && isset($data['translations']) && is_array($data['translations'])) {
+            foreach ($data['translations'] as $key => $translation) {
+                $data['translations'][$key]['category_id'] = $parentCategoryId;
+            }
+        }
+
+        return $data;
+    }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         if (isset($data['translations']) && is_array($data['translations'])) {
