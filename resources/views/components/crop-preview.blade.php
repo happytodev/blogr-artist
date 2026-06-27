@@ -1,43 +1,51 @@
-<div x-data="{
-    get cx() { return $wire.get('data.crop_x') ?? 50 },
-    get cy() { return $wire.get('data.crop_y') ?? 50 },
-    get imageUrl() {
-        let translations = $wire.get('data.translations');
-        if (! translations) return null;
-        for (let key in translations) {
-            let img = translations[key]?.image;
-            if (Array.isArray(img)) img = img[0];
-            if (img && typeof img === 'string') {
-                if (img.startsWith('/storage/') || img.startsWith('storage/')) return img;
-                return '/storage/' + img;
-            }
+@php
+    $imageUrl = null;
+    if ($firstTranslation = $data['translations'][array_key_first($data['translations'] ?? [])] ?? null) {
+        $img = $firstTranslation['image'] ?? null;
+        if (is_array($img)) {
+            $img = $img[0] ?? null;
         }
-        return null;
-    },
-}">
+        if ($img) {
+            if (!str_starts_with($img, '/storage/') && !str_starts_with($img, 'storage/')) {
+                $img = '/storage/' . $img;
+            }
+            $imageUrl = $img;
+        }
+    }
+@endphp
+
+<div
+    x-data="{
+        cx: {{ ($data['crop_x'] ?? 50) }},
+        cy: {{ ($data['crop_y'] ?? 50) }},
+    }"
+    x-init="
+        $watch('$wire.data.crop_x', val => cx = val ?? 50);
+        $watch('$wire.data.crop_y', val => cy = val ?? 50);
+    "
+>
     <div class="mt-2">
         <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Crop preview</p>
 
         <div class="relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
              style="height: 300px; max-width: 600px;">
-            <template x-if="imageUrl">
-                <img
-                    :src="imageUrl"
-                    :style="'object-position: ' + cx + '% ' + cy + '%'"
-                    class="w-full h-full object-cover"
-                    alt="Crop preview"
-                >
-            </template>
-            <template x-if="!imageUrl">
-                <div class="flex items-center justify-center h-full text-sm text-gray-400">
-                    <span>Upload an image first to see crop preview</span>
-                </div>
-            </template>
+            @if($imageUrl)
+            <img
+                src="{{ $imageUrl }}"
+                x-bind:style="'object-position: ' + cx + '% ' + cy + '%'"
+                class="w-full h-full object-cover"
+                alt="Crop preview"
+            >
+            @else
+            <div class="flex items-center justify-center h-full text-sm text-gray-400">
+                <span>Upload an image in the translation first to see crop preview</span>
+            </div>
+            @endif
         </div>
 
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Position: <span x-text="cx"></span>% / <span x-text="cy"></span>%
-            &mdash; <span class="italic">The preview updates live as you move the sliders</span>
+            &mdash; <span class="italic">Updates live as you move the sliders</span>
         </p>
     </div>
 </div>
