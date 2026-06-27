@@ -1,35 +1,22 @@
 <div
     x-data="{
-        cx: 50,
-        cy: 50,
-        imageUrl: null,
-
-        init() {
-            this.updateImage();
-        },
-
-        updateImage() {
-            this.cx = $wire.get('data.crop_x') ?? 50;
-            this.cy = $wire.get('data.crop_y') ?? 50;
-
-            let translations = $wire.get('data.translations');
-            if (! translations) { this.imageUrl = null; return; }
-            for (let key in translations) {
-                let img = translations[key]?.image;
+        get cx() { return $wire.get('data.crop_x') ?? 50 },
+        get cy() { return $wire.get('data.crop_y') ?? 50 },
+        get imageUrl() {
+            let t = $wire.get('data.translations');
+            if (! t) return null;
+            for (let k in t) {
+                let img = t[k]?.image;
                 if (Array.isArray(img)) img = img[0];
                 if (img && typeof img === 'string') {
-                    if (img.startsWith('/storage/') || img.startsWith('storage/')) {
-                        this.imageUrl = img;
-                    } else {
-                        this.imageUrl = '/storage/' + img;
-                    }
-                    return;
+                    if (img.startsWith('/storage/') || img.startsWith('storage/')) return img;
+                    return '/storage/' + img;
                 }
             }
-            this.imageUrl = null;
+            return null;
         }
     }"
-    x-on:livewire:update.window="updateImage()"
+    x-on:livewire:update.window="$refresh()"
 >
     <div class="mt-2">
         <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Crop preview</p>
