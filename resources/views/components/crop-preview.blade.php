@@ -6,7 +6,11 @@
         if (! translations) return null;
         for (let key in translations) {
             let img = translations[key]?.image;
-            if (img) return '/storage/' + img;
+            if (Array.isArray(img)) img = img[0];
+            if (img && typeof img === 'string') {
+                if (img.startsWith('/storage/') || img.startsWith('storage/')) return img;
+                return '/storage/' + img;
+            }
         }
         return null;
     },
