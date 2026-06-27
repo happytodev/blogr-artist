@@ -11,12 +11,17 @@
         $lightboxNav = config('blogr-artist.portfolio.lightbox_navigation', true);
     @endphp
 
+    @php
+        $thumbs = $artworks->map(fn($a) => ($t = $a->getDefaultTranslation()) && ($t->cropped_image ?? $t->image) ? \Storage::url($t->cropped_image ?? $t->image) : null)->values();
+        $fulls = $artworks->map(fn($a) => ($t = $a->getDefaultTranslation()) && $t->image ? \Storage::url($t->image) : null)->values();
+    @endphp
+
     <div
         x-data="{
             open: false,
             current: 0,
-            images: {{ json_encode($artworks->map(fn($a) => ($t = $a->getDefaultTranslation()) && $t->image ? \Storage::url($t->image) : null)->values()) }},
-            crops: {{ json_encode($artworks->map(fn($a) => ['x' => $a->crop_x, 'y' => $a->crop_y])->values()) }},
+            thumbs: {{ json_encode($thumbs) }},
+            images: {{ json_encode($fulls) }},
 
             openLightbox(index) {
                 this.current = index;
@@ -47,10 +52,9 @@
                 class="group relative overflow-hidden rounded-2xl cursor-pointer"
             >
                 <img
-                    src="{{ \Storage::url($t->image) }}"
+                    src="{{ \Storage::url($t->cropped_image ?? $t->image) }}"
                     alt="{{ $t->title ?? '' }}"
                     class="w-full h-[{{ $imageHeight }}px] object-cover transition-all duration-500 group-hover:grayscale"
-                    style="object-position: {{ $artwork->crop_x }}% {{ $artwork->crop_y }}%"
                     loading="{{ $index < 3 ? 'eager' : 'lazy' }}"
                 >
                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 rounded-2xl"></div>

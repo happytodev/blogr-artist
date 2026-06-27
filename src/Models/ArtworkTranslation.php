@@ -17,6 +17,7 @@ class ArtworkTranslation extends Model
         'slug',
         'description',
         'image',
+        'cropped_image',
         'gallery',
         'price',
         'category_name',

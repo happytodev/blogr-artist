@@ -105,6 +105,16 @@ class ArtworkResource extends Resource
                                     ->imageEditor()
                                     ->columnSpan(2),
 
+                                FileUpload::make('cropped_image')
+                                    ->label('Cropped Image (for portfolio)')
+                                    ->image()
+                                    ->disk('public')
+                                    ->directory('artworks/cropped')
+                                    ->visibility('public')
+                                    ->imageEditor()
+                                    ->helperText('Crop this version for the portfolio gallery. Leave empty to use the main image.')
+                                    ->columnSpan(2),
+
                                 FileUpload::make('gallery')
                                     ->label('Additional Images')
                                     ->multiple()
@@ -151,42 +161,22 @@ class ArtworkResource extends Resource
                     ])
                     ->columns(2),
 
-                Section::make('Crop & Visibility')
+                Section::make('Visibility')
                     ->columnSpan(2)
                     ->schema([
-                        \Filament\Schemas\Components\Fieldset::make('Image Crop')
-                            ->schema([
-                                \Filament\Forms\Components\Slider::make('crop_x')
-                                    ->label('Horizontal position')
-                                    ->minValue(0)->maxValue(100)->default(50)
-                                    ->helperText('Adjust the crop position horizontally (0 = left, 50 = center, 100 = right)'),
+                        Toggle::make('show_in_portfolio')
+                            ->label('Show in portfolio gallery')
+                            ->default(true)
+                            ->inline()
+                            ->helperText('Display this artwork on the /portfolio page'),
 
-                                \Filament\Forms\Components\Slider::make('crop_y')
-                                    ->label('Vertical position')
-                                    ->minValue(0)->maxValue(100)->default(50)
-                                    ->helperText('Adjust the crop position vertically (0 = top, 50 = center, 100 = bottom)'),
-
-                                \Filament\Schemas\Components\View::make('blogr-artist::components.crop-preview')
-                                    ->columnSpan(2),
-                            ])
-                            ->columns(2),
-
-                        \Filament\Schemas\Components\Fieldset::make('Visibility')
-                            ->schema([
-                                Toggle::make('show_in_portfolio')
-                                    ->label('Show in portfolio gallery')
-                                    ->default(true)
-                                    ->inline()
-                                    ->helperText('Display this artwork on the /portfolio page'),
-
-                                Toggle::make('show_in_commissions')
-                                    ->label('Show in commissions')
-                                    ->default(false)
-                                    ->inline()
-                                    ->helperText('Display this artwork in the commissions carousel'),
-                            ])
-                            ->columns(2),
-                    ]),
+                        Toggle::make('show_in_commissions')
+                            ->label('Show in commissions')
+                            ->default(false)
+                            ->inline()
+                            ->helperText('Display this artwork in the commissions carousel'),
+                    ])
+                    ->columns(2),
             ]);
     }
 

@@ -20,8 +20,6 @@ class Artwork extends Model implements Sortable
     protected $fillable = [
         'user_id',
         'category_id',
-        'crop_x',
-        'crop_y',
         'show_in_portfolio',
         'show_in_commissions',
         'is_published',
@@ -31,8 +29,6 @@ class Artwork extends Model implements Sortable
     ];
 
     protected $casts = [
-        'crop_x' => 'float',
-        'crop_y' => 'float',
         'show_in_portfolio' => 'boolean',
         'show_in_commissions' => 'boolean',
         'is_published' => 'boolean',
