@@ -130,6 +130,10 @@ class ArtworkResource extends Resource
                             ->getOptionLabelFromRecordUsing(fn (Category $cat) => $cat->getDefaultTranslation()?->name ?? $cat->name)
                             ->columnSpan(1),
 
+                        DateTimePicker::make('published_at')
+                            ->label('Published At')
+                            ->columnSpan(1),
+
                         Toggle::make('is_published')
                             ->label('Published')
                             ->default(false)
@@ -140,10 +144,6 @@ class ArtworkResource extends Resource
                             ->label('Featured')
                             ->default(false)
                             ->inline()
-                            ->columnSpan(1),
-
-                        DateTimePicker::make('published_at')
-                            ->label('Published At')
                             ->columnSpan(1),
                     ])
                     ->columns(2),
