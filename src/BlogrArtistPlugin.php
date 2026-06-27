@@ -5,6 +5,7 @@ namespace Happytodev\BlogrArtist;
 use Filament\Contracts\Plugin as FilamentPlugin;
 use Filament\Panel;
 use Happytodev\Blogr\Contracts\BlogrExtension;
+use Happytodev\BlogrArtist\Filament\Pages\ArtistSettings;
 use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource;
 
 class BlogrArtistPlugin implements BlogrExtension, FilamentPlugin
@@ -48,6 +49,8 @@ class BlogrArtistPlugin implements BlogrExtension, FilamentPlugin
     {
         $panel->resources([
             ArtworkResource::class,
+        ])->pages([
+            ArtistSettings::class,
         ]);
     }
 

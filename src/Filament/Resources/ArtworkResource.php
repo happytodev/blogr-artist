@@ -151,21 +151,21 @@ class ArtworkResource extends Resource
                 Section::make('Crop & Visibility')
                     ->columnSpan(2)
                     ->schema([
-                        \Filament\Forms\Components\Fieldset::make('Image Crop')
+                        \Filament\Schemas\Components\Fieldset::make('Image Crop')
                             ->schema([
                                 \Filament\Forms\Components\Slider::make('crop_x')
                                     ->label('Horizontal position')
-                                    ->min(0)->max(100)->default(50)
+                                    ->minValue(0)->maxValue(100)->default(50)
                                     ->helperText('Adjust the crop position horizontally (0 = left, 50 = center, 100 = right)'),
 
                                 \Filament\Forms\Components\Slider::make('crop_y')
                                     ->label('Vertical position')
-                                    ->min(0)->max(100)->default(50)
+                                    ->minValue(0)->maxValue(100)->default(50)
                                     ->helperText('Adjust the crop position vertically (0 = top, 50 = center, 100 = bottom)'),
                             ])
                             ->columns(2),
 
-                        \Filament\Forms\Components\Fieldset::make('Visibility')
+                        \Filament\Schemas\Components\Fieldset::make('Visibility')
                             ->schema([
                                 Toggle::make('show_in_portfolio')
                                     ->label('Show in portfolio gallery')
