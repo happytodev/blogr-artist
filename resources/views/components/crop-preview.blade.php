@@ -1,7 +1,15 @@
 <div x-data="{
     get cx() { return $wire.get('data.crop_x') ?? 50 },
     get cy() { return $wire.get('data.crop_y') ?? 50 },
-    get imageUrl() { return $wire.get('data.translations.0.image') ? '/storage/' + $wire.get('data.translations.0.image') : null },
+    get imageUrl() {
+        let translations = $wire.get('data.translations');
+        if (! translations) return null;
+        for (let key in translations) {
+            let img = translations[key]?.image;
+            if (img) return '/storage/' + img;
+        }
+        return null;
+    },
 }">
     <div class="mt-2">
         <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Crop preview</p>
