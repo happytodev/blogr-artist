@@ -134,18 +134,19 @@ class ArtworkResource extends Resource
                             ->label('Published At')
                             ->columnSpan(1),
 
-                        Toggle::make('is_published')
-                            ->label('Published')
-                            ->default(false)
-                            ->inline()
-                            ->columnSpan(1),
-
+                            
                         Toggle::make('is_featured')
                             ->label('Featured')
                             ->default(false)
                             ->inline()
                             ->columnSpan(1),
-                    ])
+
+                        Toggle::make('is_published')
+                            ->label('Published')
+                            ->default(false)
+                            ->inline()
+                            ->columnSpan(1),
+                            ])
                     ->columns(2),
             ]);
     }
