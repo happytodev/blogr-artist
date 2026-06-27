@@ -19,6 +19,7 @@ class Artwork extends Model implements Sortable
 
     protected $fillable = [
         'user_id',
+        'category_id',
         'is_published',
         'is_featured',
         'sort_order',
@@ -50,6 +51,11 @@ class Artwork extends Model implements Sortable
     {
         $locale = app()->getLocale();
         return $this->translate($locale) ?? $this->translations->first();
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
     }
 
     public function user(): BelongsTo

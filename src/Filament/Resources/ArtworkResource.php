@@ -80,17 +80,11 @@ class ArtworkResource extends Resource
                                     ->maxLength(100)
                                     ->columnSpan(1),
 
-                                TextInput::make('category_name')
-                                    ->label('Category (text)')
-                                    ->maxLength(255)
-                                    ->columnSpan(1),
-
-                                Select::make('categories')
-                                    ->label('Categories')
-                                    ->relationship('categories', 'name')
-                                    ->multiple()
+                                Select::make('category_id')
+                                    ->label('Category')
+                                    ->relationship('category', 'name')
                                     ->getOptionLabelFromRecordUsing(fn (Category $cat) => $cat->getDefaultTranslation()?->name ?? $cat->name)
-                                    ->columnSpan(2),
+                                    ->columnSpan(1),
 
                                 Select::make('relatedTags')
                                     ->label('Tags')
@@ -172,9 +166,8 @@ class ArtworkResource extends Resource
                     ->label('Price')
                     ->getStateUsing(fn (Artwork $record): ?string => $record->getDefaultTranslation()?->price),
 
-                TextColumn::make('category_name')
-                    ->label('Category')
-                    ->getStateUsing(fn (Artwork $record): ?string => $record->getDefaultTranslation()?->category_name),
+                TextColumn::make('category.name')
+                    ->label('Category'),
 
                 IconColumn::make('is_published')
                     ->label('Published')

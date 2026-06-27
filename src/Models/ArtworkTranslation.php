@@ -37,16 +37,6 @@ class ArtworkTranslation extends Model
         return $this->belongsTo(Artwork::class, 'artwork_id');
     }
 
-    public function categories(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            Category::class,
-            'artwork_translation_category',
-            'artwork_translation_id',
-            'category_id'
-        );
-    }
-
     public function relatedTags(): BelongsToMany
     {
         return $this->belongsToMany(
