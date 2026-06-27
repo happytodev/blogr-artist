@@ -16,7 +16,9 @@ class EditArtwork extends EditRecord
             if (isset($first['category_id'])) {
                 $data['category_id'] = $first['category_id'];
             }
-            array_walk($data['translations'], fn (&$t) => unset($t['category_id']));
+            foreach ($data['translations'] as $key => $t) {
+                unset($data['translations'][$key]['category_id']);
+            }
         }
 
         return $data;
