@@ -4,7 +4,11 @@ namespace Happytodev\BlogrArtist;
 
 use Filament\PanelRegistry;
 use Happytodev\Blogr\Services\ExtensionRegistry;
+use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource\Pages\CreateArtwork;
+use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource\Pages\EditArtwork;
+use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource\Pages\ListArtworks;
 use Happytodev\BlogrArtist\Http\Controllers\PortfolioController;
+use Livewire\Livewire;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -41,9 +45,24 @@ class BlogrArtistServiceProvider extends PackageServiceProvider
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         $this->registerExtensions();
+        $this->registerLivewireComponents();
 
         if ($this->isExtensionEnabled()) {
             $this->registerRoutes();
+        }
+    }
+
+    protected function registerLivewireComponents(): void
+    {
+        $pages = [
+            ListArtworks::class,
+            CreateArtwork::class,
+            EditArtwork::class,
+        ];
+
+        foreach ($pages as $page) {
+            $name = app(\Livewire\Mechanisms\ComponentRegistry::class)->getName($page);
+            Livewire::component($name, $page);
         }
     }
 
