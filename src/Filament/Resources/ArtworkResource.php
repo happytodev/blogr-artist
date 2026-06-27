@@ -80,12 +80,6 @@ class ArtworkResource extends Resource
                                     ->maxLength(100)
                                     ->columnSpan(1),
 
-                                Select::make('category_id')
-                                    ->label('Category')
-                                    ->relationship('category', 'name')
-                                    ->getOptionLabelFromRecordUsing(fn (Category $cat) => $cat->getDefaultTranslation()?->name ?? $cat->name)
-                                    ->columnSpan(1),
-
                                 Select::make('relatedTags')
                                     ->label('Tags')
                                     ->relationship('relatedTags', 'name')
@@ -126,8 +120,14 @@ class ArtworkResource extends Resource
                             ->columnSpan(2),
                     ]),
 
-                Section::make('Publication')
+                Section::make('Details')
                     ->schema([
+                        Select::make('category_id')
+                            ->label('Category')
+                            ->relationship('category', 'name')
+                            ->getOptionLabelFromRecordUsing(fn (Category $cat) => $cat->getDefaultTranslation()?->name ?? $cat->name)
+                            ->columnSpan(1),
+
                         Toggle::make('is_published')
                             ->label('Published')
                             ->default(false)
