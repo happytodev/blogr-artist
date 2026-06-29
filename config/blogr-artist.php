@@ -1,8 +1,6 @@
 <?php
 
 return [
-    'route_prefix' => 'portfolio',
-
     'per_page' => 12,
 
     'thumbnail_height' => 250,
@@ -13,9 +11,9 @@ return [
     |--------------------------------------------------------------------------
     */
     'portfolio' => [
-        'show' => env('BLOGR_ARTIST_PORTFOLIO_SHOW', 'featured'),
-        'lightbox_navigation' => env('BLOGR_ARTIST_PORTFOLIO_LIGHTBOX_NAV', true),
-        'image_height' => 400,
+        'url' => 'portfolio',
+        'commissions_url' => 'commissions',
+        'lightbox_navigation' => true,
         'max_images' => 6,
     ],
 
@@ -25,8 +23,6 @@ return [
     |--------------------------------------------------------------------------
     */
     'commissions' => [
-        'show' => env('BLOGR_ARTIST_COMMISSIONS_SHOW', 'all'),
-        'autoplay_speed' => env('BLOGR_ARTIST_COMMISSIONS_AUTOPLAY_SPEED', 4000),
-        'image_height' => 500,
+        'autoplay_speed' => 7000,
     ],
 ];

@@ -2,7 +2,6 @@
 
 namespace Happytodev\BlogrArtist\Filament\Pages;
 
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -31,26 +30,22 @@ class ArtistSettings extends Page
     }
 
     // Portfolio settings
-    public string $portfolio_show = 'featured';
+    public string $portfolio_url = 'portfolio';
+    public string $portfolio_commissions_url = 'commissions';
     public bool $portfolio_lightbox_navigation = true;
-    public int $portfolio_image_height = 400;
     public int $portfolio_max_images = 6;
 
     // Commissions settings
-    public string $commissions_show = 'all';
     public int $commissions_autoplay_speed = 4000;
-    public int $commissions_image_height = 500;
 
     public function mount(): void
     {
         $this->form->fill([
-            'portfolio_show' => config('blogr-artist.portfolio.show', 'featured'),
+            'portfolio_url' => config('blogr-artist.portfolio.url', 'portfolio'),
+            'portfolio_commissions_url' => config('blogr-artist.portfolio.commissions_url', 'commissions'),
             'portfolio_lightbox_navigation' => config('blogr-artist.portfolio.lightbox_navigation', true),
-            'portfolio_image_height' => config('blogr-artist.portfolio.image_height', 400),
             'portfolio_max_images' => config('blogr-artist.portfolio.max_images', 6),
-            'commissions_show' => config('blogr-artist.commissions.show', 'all'),
             'commissions_autoplay_speed' => config('blogr-artist.commissions.autoplay_speed', 4000),
-            'commissions_image_height' => config('blogr-artist.commissions.image_height', 500),
         ]);
     }
 
@@ -58,23 +53,22 @@ class ArtistSettings extends Page
     {
         $data = $this->form->getState();
 
-        $content = File::get(config_path('blogr-artist.php'));
+        $configPath = __DIR__ . '/../../../config/blogr-artist.php';
+        $content = File::get($configPath);
 
         $replacements = [
-            "'show' => env('BLOGR_ARTIST_PORTFOLIO_SHOW', 'featured')" => "'show' => '{$data['portfolio_show']}'",
+            "'url' => 'portfolio'" => "'url' => '{$data['portfolio_url']}'",
+            "'commissions_url' => 'commissions'" => "'commissions_url' => '{$data['portfolio_commissions_url']}'",
             "'lightbox_navigation' => env('BLOGR_ARTIST_PORTFOLIO_LIGHTBOX_NAV', true)" => "'lightbox_navigation' => {$this->boolToString($data['portfolio_lightbox_navigation'])}",
-            "'image_height' => 400" => "'image_height' => {$data['portfolio_image_height']}",
             "'max_images' => 6" => "'max_images' => {$data['portfolio_max_images']}",
-            "'show' => env('BLOGR_ARTIST_COMMISSIONS_SHOW', 'all')" => "'show' => '{$data['commissions_show']}'",
             "'autoplay_speed' => env('BLOGR_ARTIST_COMMISSIONS_AUTOPLAY_SPEED', 4000)" => "'autoplay_speed' => {$data['commissions_autoplay_speed']}",
-            "'image_height' => 500" => "'image_height' => {$data['commissions_image_height']}",
         ];
 
         foreach ($replacements as $search => $replace) {
             $content = str_replace($search, $replace, $content);
         }
 
-        File::put(config_path('blogr-artist.php'), $content);
+        File::put($configPath, $content);
 
         Notification::make()
             ->title('Settings saved')
@@ -93,24 +87,29 @@ class ArtistSettings extends Page
             Section::make('Portfolio page')
                 ->description('Configure how the /portfolio page displays artworks')
                 ->schema([
-                    Select::make('portfolio_show')
-                        ->label('Show artworks')
-                        ->options([
-                            'all' => 'All published artworks',
-                            'featured' => 'Only featured artworks',
-                        ])
-                        ->helperText('Which artworks appear in the portfolio gallery'),
+                    TextInput::make('portfolio_url')
+                        ->label('Portfolio page URL')
+                        ->rule(function () {
+                            $reserved = config('blogr.cms.reserved_slugs', []);
+
+                            return function (string $value, \Closure $fail) use ($reserved): void {
+                                $slug = trim($value, '/');
+
+                                if (in_array($slug, $reserved, true)) {
+                                    $fail("The URL \"{$slug}\" is reserved by the CMS.");
+                                }
+
+                                if (! preg_match('/^[a-z0-9\/_-]+$/', $slug)) {
+                                    $fail('Only lowercase letters, numbers, hyphens, underscores, and slashes allowed.');
+                                }
+                            };
+                        })
+                        ->placeholder('portfolio')
+                        ->helperText('The public URL path for the portfolio page. Use a simple slug like "portfolio" or "galerie".'),
 
                     Toggle::make('portfolio_lightbox_navigation')
                         ->label('Enable prev/next navigation in lightbox')
                         ->inline(),
-
-                    TextInput::make('portfolio_image_height')
-                        ->label('Image height (px)')
-                        ->numeric()
-                        ->minValue(200)
-                        ->maxValue(800)
-                        ->suffix('px'),
 
                     TextInput::make('portfolio_max_images')
                         ->label('Max images to display')
@@ -123,13 +122,25 @@ class ArtistSettings extends Page
             Section::make('Commissions page')
                 ->description('Configure how the /commissions page displays artworks')
                 ->schema([
-                    Select::make('commissions_show')
-                        ->label('Show artworks')
-                        ->options([
-                            'all' => 'All published artworks',
-                            'featured' => 'Only featured artworks',
-                        ])
-                        ->helperText('Which artworks appear in the commissions carousel'),
+                    TextInput::make('portfolio_commissions_url')
+                        ->label('Commissions page URL')
+                        ->rule(function () {
+                            $reserved = config('blogr.cms.reserved_slugs', []);
+
+                            return function (string $value, \Closure $fail) use ($reserved): void {
+                                $slug = trim($value, '/');
+
+                                if (in_array($slug, $reserved, true)) {
+                                    $fail("The URL \"{$slug}\" is reserved by the CMS.");
+                                }
+
+                                if (! preg_match('/^[a-z0-9\/_-]+$/', $slug)) {
+                                    $fail('Only lowercase letters, numbers, hyphens, underscores, and slashes allowed.');
+                                }
+                            };
+                        })
+                        ->placeholder('commissions')
+                        ->helperText('The public URL path for the commissions carousel page.'),
 
                     TextInput::make('commissions_autoplay_speed')
                         ->label('Autoplay speed (ms)')
@@ -138,13 +149,6 @@ class ArtistSettings extends Page
                         ->maxValue(15000)
                         ->suffix('ms')
                         ->helperText('Time between slides in milliseconds'),
-
-                    TextInput::make('commissions_image_height')
-                        ->label('Image height (px)')
-                        ->numeric()
-                        ->minValue(200)
-                        ->maxValue(800)
-                        ->suffix('px'),
                 ])
                 ->columns(2),
         ];

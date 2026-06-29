@@ -7,7 +7,6 @@
     </h1>
 
     @php
-        $imageHeight = config('blogr-artist.portfolio.image_height', 400);
         $lightboxNav = config('blogr-artist.portfolio.lightbox_navigation', true);
     @endphp
 
@@ -54,7 +53,7 @@
                 <img
                     src="{{ \Storage::url($t->cropped_image ?? $t->image) }}"
                     alt="{{ $t->title ?? '' }}"
-                    class="w-full h-[{{ $imageHeight }}px] object-cover transition-all duration-500 group-hover:grayscale"
+                    class="w-full h-[250px] sm:h-[350px] md:h-[450px] lg:h-[550px] object-cover transition-all duration-500 group-hover:grayscale"
                     loading="{{ $index < 3 ? 'eager' : 'lazy' }}"
                 >
                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 rounded-2xl"></div>

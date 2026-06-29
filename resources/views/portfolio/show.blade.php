@@ -57,7 +57,7 @@
                 </span>
                 @endif
 
-                @if(!$translation->is_available)
+                @if(($translation->status ?? 'open') === 'sold')
                 <span class="px-3 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm font-medium">
                     {{ __('Sold') }}
                 </span>
@@ -66,7 +66,7 @@
 
             @if($translation->description)
             <div class="prose prose-lg dark:prose-invert max-w-none">
-                {{ $translation->description }}
+                {!! Str::markdown($translation->description) !!}
             </div>
             @endif
         </div>
