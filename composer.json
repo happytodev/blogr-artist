@@ -1,6 +1,7 @@
 {
     "name": "happytodev/blogr-artist",
     "description": "Artist portfolio plugin for Blogr — artworks, portfolio pages, and commission management.",
+    "version": "1.0.0",
     "type": "library",
     "license": "MIT",
     "authors": [
