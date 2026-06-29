@@ -8,6 +8,7 @@ use Happytodev\Blogr\Contracts\BlogrExtension;
 use Happytodev\Blogr\Services\LinkTypeRegistry;
 use Happytodev\BlogrArtist\Filament\Pages\ArtistSettings;
 use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource;
+use Illuminate\Support\Facades\DB;
 
 class BlogrArtistPlugin implements BlogrExtension, FilamentPlugin
 {
@@ -46,6 +47,30 @@ class BlogrArtistPlugin implements BlogrExtension, FilamentPlugin
         return ['blogr-core'];
     }
 
+    public function getSettingsUrl(): ?string
+    {
+        try {
+            $disabled = DB::table('blogr_extension_states')
+                ->where('extension_id', 'blogr-artist')
+                ->whereNotNull('disabled_at')
+                ->exists();
+        } catch (\Throwable) {
+            $disabled = false;
+        }
+
+        if ($disabled) {
+            return null;
+        }
+
+        try {
+            return ArtistSettings::getUrl();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public function registerExtension(\Happytodev\Blogr\Services\ExtensionRegistry $registry): void {}
+
     public function registerLinkTypes(LinkTypeRegistry $registry): void
     {
         $registry->register(
@@ -63,6 +88,19 @@ class BlogrArtistPlugin implements BlogrExtension, FilamentPlugin
 
     public function register(Panel $panel): void
     {
+        try {
+            $disabled = DB::table('blogr_extension_states')
+                ->where('extension_id', 'blogr-artist')
+                ->whereNotNull('disabled_at')
+                ->exists();
+        } catch (\Throwable) {
+            $disabled = false;
+        }
+
+        if ($disabled) {
+            return;
+        }
+
         $panel->resources([
             ArtworkResource::class,
         ])->pages([

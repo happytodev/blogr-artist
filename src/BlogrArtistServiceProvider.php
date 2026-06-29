@@ -44,14 +44,15 @@ class BlogrArtistServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
-
         $this->registerExtensions();
-        $this->registerLivewireComponents();
 
-        if ($this->isExtensionEnabled()) {
-            $this->registerRoutes();
+        if (! $this->isExtensionEnabled()) {
+            return;
         }
+
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        $this->registerLivewireComponents();
+        $this->registerRoutes();
     }
 
     protected function registerLivewireComponents(): void

@@ -8,6 +8,7 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
+use Happytodev\Blogr\Services\ExtensionRegistry;
 use Illuminate\Support\Facades\File;
 
 class ArtistSettings extends Page
@@ -23,6 +24,15 @@ class ArtistSettings extends Page
     protected string $view = 'blogr-artist::filament.pages.artist-settings';
 
     protected static ?int $navigationSort = 5;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        if (! app()->has(ExtensionRegistry::class)) {
+            return true;
+        }
+
+        return app(ExtensionRegistry::class)->isEnabled('blogr-artist');
+    }
 
     public static function canAccess(): bool
     {
