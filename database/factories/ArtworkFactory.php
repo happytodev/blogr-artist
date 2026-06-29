@@ -13,7 +13,6 @@ class ArtworkFactory extends Factory
     {
         return [
             'is_published' => true,
-            'is_featured' => false,
             'sort_order' => 0,
             'published_at' => now(),
         ];
@@ -24,13 +23,6 @@ class ArtworkFactory extends Factory
         return $this->state(fn (array $attrs) => [
             'is_published' => true,
             'published_at' => now(),
-        ]);
-    }
-
-    public function featured(): static
-    {
-        return $this->state(fn (array $attrs) => [
-            'is_featured' => true,
         ]);
     }
 }

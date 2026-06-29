@@ -22,7 +22,7 @@ class ArtworkTranslation extends Model
         'price',
         'category_name',
         'tags',
-        'is_available',
+        'status',
         'seo_title',
         'seo_description',
     ];
@@ -30,8 +30,16 @@ class ArtworkTranslation extends Model
     protected $casts = [
         'gallery' => 'array',
         'tags' => 'array',
-        'is_available' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $translation): void {
+            if ($translation->image && ! $translation->cropped_image) {
+                $translation->cropped_image = $translation->image;
+            }
+        });
+    }
 
     public function artwork(): BelongsTo
     {
