@@ -4,6 +4,7 @@ namespace Happytodev\BlogrArtist;
 
 use Filament\PanelRegistry;
 use Happytodev\Blogr\Services\ExtensionRegistry;
+use Happytodev\BlogrArtist\Filament\Pages\ArtistSettings;
 use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource\Pages\CreateArtwork;
 use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource\Pages\EditArtwork;
 use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource\Pages\ListArtworks;
@@ -56,6 +57,7 @@ class BlogrArtistServiceProvider extends PackageServiceProvider
     protected function registerLivewireComponents(): void
     {
         $pages = [
+            ArtistSettings::class,
             ListArtworks::class,
             CreateArtwork::class,
             EditArtwork::class,
@@ -87,18 +89,19 @@ class BlogrArtistServiceProvider extends PackageServiceProvider
     protected function registerRoutes(): void
     {
         $router = $this->app['router'];
-        $prefix = config('blogr-artist.route_prefix', 'portfolio');
+        $portfolioUrl = config('blogr-artist.portfolio.url', 'portfolio');
+        $commissionsUrl = config('blogr-artist.portfolio.commissions_url', 'commissions');
 
         $router->group([
             'middleware' => config('blogr.route.middleware', ['web']),
-        ], function () use ($router, $prefix) {
-            $router->get($prefix, [PortfolioController::class, 'index'])
+        ], function () use ($router, $portfolioUrl, $commissionsUrl) {
+            $router->get($portfolioUrl, [PortfolioController::class, 'index'])
                 ->name('artist.portfolio.index');
 
-            $router->get($prefix . '/{slug}', [PortfolioController::class, 'show'])
+            $router->get($portfolioUrl . '/{slug}', [PortfolioController::class, 'show'])
                 ->name('artist.portfolio.show');
 
-            $router->get('commissions', [CommissionsController::class, 'index'])
+            $router->get($commissionsUrl, [CommissionsController::class, 'index'])
                 ->name('artist.commissions.index');
         });
     }

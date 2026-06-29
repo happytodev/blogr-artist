@@ -5,6 +5,7 @@ namespace Happytodev\BlogrArtist;
 use Filament\Contracts\Plugin as FilamentPlugin;
 use Filament\Panel;
 use Happytodev\Blogr\Contracts\BlogrExtension;
+use Happytodev\Blogr\Services\LinkTypeRegistry;
 use Happytodev\BlogrArtist\Filament\Pages\ArtistSettings;
 use Happytodev\BlogrArtist\Filament\Resources\ArtworkResource;
 
@@ -43,6 +44,21 @@ class BlogrArtistPlugin implements BlogrExtension, FilamentPlugin
     public function getDependencies(): array
     {
         return ['blogr-core'];
+    }
+
+    public function registerLinkTypes(LinkTypeRegistry $registry): void
+    {
+        $registry->register(
+            'artist_portfolio',
+            'Portfolio',
+            fn (): string => route('artist.portfolio.index')
+        );
+
+        $registry->register(
+            'artist_commissions',
+            'Commissions',
+            fn (): string => route('artist.commissions.index')
+        );
     }
 
     public function register(Panel $panel): void
