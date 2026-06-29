@@ -9,19 +9,14 @@ class PortfolioController extends Controller
 {
     public function index()
     {
-        $show = config('blogr-artist.portfolio.show', 'featured');
         $maxImages = config('blogr-artist.portfolio.max_images', 6);
 
-        $query = Artwork::with('translations')
+        $artworks = Artwork::with('translations')
             ->published()
             ->forPortfolio()
-            ->ordered();
-
-        if ($show === 'featured') {
-            $query->featured();
-        }
-
-        $artworks = $query->take($maxImages)->get();
+            ->ordered()
+            ->take($maxImages)
+            ->get();
 
         return view('blogr-artist::portfolio.index', compact('artworks'));
     }

@@ -1,33 +1,40 @@
 @extends('blogr::layouts.blog')
 
 @section('content')
-<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
     <h1 class="text-4xl sm:text-5xl font-bold mb-12 text-center">
         {{ __('Commissions') }}
     </h1>
 
     @php
         $autoplaySpeed = config('blogr-artist.commissions.autoplay_speed', 4000);
-        $imageHeight = config('blogr-artist.commissions.image_height', 500);
+
+        $badgeClasses = [
+            'open' => 'bg-green-500 text-white',
+            'closed' => 'bg-gray-500 text-white',
+            'on_request' => 'bg-blue-500 text-white',
+            'auction' => 'bg-amber-500 text-white',
+            'sold' => 'bg-red-500 text-white',
+        ];
+
+        $badgeLabels = [
+            'open' => __('Open'),
+            'closed' => __('Closed'),
+            'on_request' => __('On Request'),
+            'auction' => __('Auction'),
+            'sold' => __('Sold'),
+        ];
     @endphp
 
     @if(count($commissions) > 0)
     <div
         x-data="{
             currentSlide: 0,
-            slides: {{ json_encode($commissions->map(fn($a) => ($t = $a->getDefaultTranslation()) ? [
-                'image' => $t->image ? \Storage::url($t->image) : null,
-                'title' => $t->title ?? '',
-                'price' => $t->price ?? '',
-                'status' => $t->is_available ? 'Open' : 'Sold',
-                'description' => $t->description ?? '',
-            ] : null)->values()) }},
+            totalSlides: {{ count($commissions) }},
             autoplayInterval: null,
 
             init() {
-                if (this.slides.length > 1) {
-                    this.startAutoplay();
-                }
+                if (this.totalSlides > 1) this.startAutoplay();
             },
 
             startAutoplay() {
@@ -43,80 +50,86 @@
             },
 
             next() {
-                this.currentSlide = (this.currentSlide + 1) % this.slides.length;
+                this.currentSlide = (this.currentSlide + 1) % this.totalSlides;
             },
 
             prev() {
-                this.currentSlide = (this.currentSlide - 1 + this.slides.length) % this.slides.length;
+                this.currentSlide = (this.currentSlide - 1 + this.totalSlides) % this.totalSlides;
             },
 
             goTo(index) {
                 this.currentSlide = index;
-                if (this.slides.length > 1) this.startAutoplay();
+                if (this.totalSlides > 1) this.startAutoplay();
             }
         }"
         x-on:mouseenter="stopAutoplay()"
         x-on:mouseleave="startAutoplay()"
-        class="relative max-w-3xl mx-auto"
+        class="max-w-5xl mx-auto"
     >
         @foreach($commissions as $index => $artwork)
             @php $t = $artwork->getDefaultTranslation(); @endphp
-            <div
-                x-show="currentSlide === {{ $index }}"
-                x-transition:enter="transition ease-out duration-500"
-                x-transition:enter-start="opacity-0 scale-95"
-                x-transition:enter-end="opacity-100 scale-100"
-                x-transition:leave="transition ease-in duration-300"
-                x-transition:leave-start="opacity-100 scale-100"
-                x-transition:leave-end="opacity-0 scale-95"
-                class="relative overflow-hidden rounded-2xl"
-                style="display: none;"
-            >
-                @if($t?->image)
-                <img
-                    src="{{ \Storage::url($t->image) }}"
-                    alt="{{ $t->title ?? '' }}"
-                    class="w-full h-[{{ $imageHeight }}px] object-cover transition-all duration-500 group-hover:grayscale"
-                >
-                <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div x-show="currentSlide === {{ $index }}" style="display: none;">
+                <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg overflow-hidden">
+                    @if($t?->image)
+                    <div class="relative">
+                        <img
+                            src="{{ \Storage::url($t->image) }}"
+                            alt="{{ $t->title ?? '' }}"
+                            class="w-full h-[300px] sm:h-[500px] lg:h-[600px] object-cover"
+                        >
 
-                <div class="absolute bottom-0 left-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <h3 class="text-white text-xl font-bold">{{ $t->title }}</h3>
-                    @if($t->price)
-                    <p class="text-white/90 text-lg mt-1">{{ $t->price }}</p>
+                        @if(count($commissions) > 1)
+                        <button
+                            @click="prev()"
+                            class="absolute left-4 top-1/2 -translate-y-1/2 z-10 text-white hover:text-gray-300 transition-colors bg-black/20 hover:bg-black/40 rounded-full p-2"
+                            aria-label="Previous"
+                        >
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <button
+                            @click="next()"
+                            class="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-white hover:text-gray-300 transition-colors bg-black/20 hover:bg-black/40 rounded-full p-2"
+                            aria-label="Next"
+                        >
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                        @endif
+                    </div>
                     @endif
-                    @if($t->description)
-                    <p class="text-white/70 text-sm mt-2 max-w-lg">{{ \Illuminate\Support\Str::limit($t->description, 120) }}</p>
-                    @endif
-                    <span class="inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium text-white
-                        {{ $t->is_available ? 'bg-green-500' : 'bg-red-500' }}">
-                        {{ $t->is_available ? __('Open') : __('Sold') }}
-                    </span>
+
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                                {{ $t->title ?? '' }}
+                            </h3>
+
+                            @php $status = $t->status ?? 'open'; @endphp
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $badgeClasses[$status] ?? 'bg-blue-500 text-white' }}">
+                                {{ $badgeLabels[$status] ?? __('Open') }}
+                            </span>
+                        </div>
+
+                        @if($t->price)
+                        <p class="text-lg font-bold text-[var(--color-primary)] dark:text-[var(--color-primary-dark)]">
+                            {{ $t->price }}
+                        </p>
+                        @endif
+
+                        @if($t->description)
+                        <div class="mt-4 prose prose-sm dark:prose-invert max-w-none text-gray-600 dark:text-gray-400">
+                            {!! Str::markdown($t->description) !!}
+                        </div>
+                        @endif
+                    </div>
                 </div>
-                @endif
             </div>
         @endforeach
 
         @if(count($commissions) > 1)
-        <button
-            @click="prev()"
-            class="absolute left-4 top-1/2 -translate-y-1/2 z-10 text-white hover:text-gray-300 transition-colors bg-black/20 hover:bg-black/40 rounded-full p-2"
-            aria-label="Previous"
-        >
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
-        </button>
-        <button
-            @click="next()"
-            class="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-white hover:text-gray-300 transition-colors bg-black/20 hover:bg-black/40 rounded-full p-2"
-            aria-label="Next"
-        >
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-            </svg>
-        </button>
-
         <div class="flex justify-center mt-6 space-x-3">
             @foreach($commissions as $index => $artwork)
             <button

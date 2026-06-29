@@ -18,7 +18,7 @@ test('can create an artwork with translation', function () {
         'description' => 'A beautiful sunset portrait.',
         'price' => '150€',
         'category_name' => 'Portrait',
-        'is_available' => true,
+        'status' => 'open',
     ]);
 
     expect($artwork->is_published)->toBeTrue();
@@ -35,15 +35,6 @@ test('published scope only returns published artworks', function () {
     $published = Artwork::published()->get();
 
     expect($published)->toHaveCount(1);
-});
-
-test('featured scope only returns featured artworks', function () {
-    Artwork::factory()->featured()->create();
-    Artwork::factory()->create();
-
-    $featured = Artwork::featured()->get();
-
-    expect($featured)->toHaveCount(1);
 });
 
 test('translation has unique slug per locale', function () {
@@ -69,4 +60,29 @@ test('artworks can be ordered by sort_order', function () {
 
     expect($sorted[0]->sort_order)->toBeLessThan($sorted[1]->sort_order);
     expect($sorted[1]->sort_order)->toBeLessThan($sorted[2]->sort_order);
+});
+
+test('cropped_image auto-copies from image on save when empty', function () {
+    $artwork = Artwork::factory()->create();
+    $translation = $artwork->translations()->create([
+        'locale' => 'en',
+        'title' => 'Test',
+        'slug' => 'test',
+        'image' => 'artworks/test.jpg',
+    ]);
+
+    expect($translation->cropped_image)->toBe('artworks/test.jpg');
+});
+
+test('cropped_image is not overwritten when already set', function () {
+    $artwork = Artwork::factory()->create();
+    $translation = $artwork->translations()->create([
+        'locale' => 'en',
+        'title' => 'Test',
+        'slug' => 'test',
+        'image' => 'artworks/test.jpg',
+        'cropped_image' => 'artworks/cropped/custom.jpg',
+    ]);
+
+    expect($translation->cropped_image)->toBe('artworks/cropped/custom.jpg');
 });

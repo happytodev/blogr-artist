@@ -23,7 +23,6 @@ class Artwork extends Model implements Sortable
         'show_in_portfolio',
         'show_in_commissions',
         'is_published',
-        'is_featured',
         'sort_order',
         'published_at',
     ];
@@ -32,7 +31,6 @@ class Artwork extends Model implements Sortable
         'show_in_portfolio' => 'boolean',
         'show_in_commissions' => 'boolean',
         'is_published' => 'boolean',
-        'is_featured' => 'boolean',
         'published_at' => 'datetime',
     ];
 
@@ -70,11 +68,6 @@ class Artwork extends Model implements Sortable
     public function scopePublished($query)
     {
         return $query->where('is_published', true)->whereNotNull('published_at');
-    }
-
-    public function scopeFeatured($query)
-    {
-        return $query->where('is_featured', true);
     }
 
     public function scopeForPortfolio($query)

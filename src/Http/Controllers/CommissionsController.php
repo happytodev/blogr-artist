@@ -9,17 +9,11 @@ class CommissionsController extends Controller
 {
     public function index()
     {
-        $show = config('blogr-artist.commissions.show', 'all');
-
-        $query = Artwork::with('translations')
+        $commissions = Artwork::with('translations')
             ->published()
-            ->forCommissions();
-
-        if ($show === 'featured') {
-            $query->featured();
-        }
-
-        $commissions = $query->ordered()->get();
+            ->forCommissions()
+            ->ordered()
+            ->get();
 
         return view('blogr-artist::portfolio.commissions', compact('commissions'));
     }

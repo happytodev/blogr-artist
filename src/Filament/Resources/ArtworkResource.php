@@ -91,9 +91,16 @@ class ArtworkResource extends Resource
                                     ->getOptionLabelFromRecordUsing(fn (Tag $tag) => $tag->getDefaultTranslation()?->name ?? $tag->name)
                                     ->columnSpan(2),
 
-                                Toggle::make('is_available')
-                                    ->label('Available for sale')
-                                    ->default(true)
+                                Select::make('status')
+                                    ->label('Status')
+                                    ->options([
+                                        'open' => 'Open',
+                                        'closed' => 'Closed',
+                                        'on_request' => 'On Request',
+                                        'auction' => 'Auction',
+                                        'sold' => 'Sold',
+                                    ])
+                                    ->default('open')
                                     ->columnSpan(1),
 
                                 FileUpload::make('image')
@@ -102,7 +109,7 @@ class ArtworkResource extends Resource
                                     ->disk('public')
                                     ->directory('artworks')
                                     ->visibility('public')
-                                    ->imageEditor()
+                                    // ->imageEditor()
                                     ->columnSpan(2),
 
                                 FileUpload::make('cropped_image')
@@ -145,12 +152,6 @@ class ArtworkResource extends Resource
 
                         DateTimePicker::make('published_at')
                             ->label('Published At')
-                            ->columnSpan(1),
-
-                        Toggle::make('is_featured')
-                            ->label('Featured')
-                            ->default(false)
-                            ->inline()
                             ->columnSpan(1),
 
                         Toggle::make('is_published')
@@ -205,10 +206,6 @@ class ArtworkResource extends Resource
 
                 IconColumn::make('is_published')
                     ->label('Published')
-                    ->boolean(),
-
-                IconColumn::make('is_featured')
-                    ->label('Featured')
                     ->boolean(),
 
                 TextColumn::make('published_at')
